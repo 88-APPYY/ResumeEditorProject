@@ -1,0 +1,8 @@
+/* --- Template B: Professional Style --- */
+.tpl-professional { display: flex; gap: 0; margin: -15mm -18mm; min-height: 297mm; }
+.tpl-professional .side-col { width: 33%; background: #1e293b; color: #f1f5f9; padding: 15mm 1rem; }
+.tpl-professional .main-col { width: 67%; background: white; padding: 15mm 1.2rem; }
+.tpl-professional .side-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--primary-color); }
+.tpl-professional .side-text { font-size: 0.75rem; margin-bottom: 0.5rem; opacity: 0.9; }
+.tpl-professional .res-name { font-size: 2rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem; }
+.tpl-professional .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 1.2rem 0 0.8rem 0; padding-left: 10px; border-left: 4px solid var(--primary-color); }
