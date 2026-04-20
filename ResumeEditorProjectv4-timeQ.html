@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简简历 - 专业在线编辑器</title>
+    <!-- html2pdf.js for high-quality PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --primary-hover: #1d4ed8;
+            --bg-gray: #f1f5f9;
+            --border-color: #e2e8f0;
+            --text-main: #1e293b;
+            --text-muted: #64748b;
+            --sidebar-width: 420px;
+            --shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1);
+            --safe-area-bottom: env(safe-area-inset-bottom);
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Inter', 'PingFang SC', 'Microsoft YaHei', sans-serif; }
+
+        body { background-color: var(--bg-gray); color: var(--text-main); height: 100vh; display: flex; overflow: hidden; }
+
+        /* --- Layout Structure --- */
+        .editor-container {
+            width: var(--sidebar-width);
+            height: 100%;
+            background: white;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            box-shadow: 4px 0 10px rgba(0,0,0,0.03);
+            z-index: 20;
+            transition: transform 0.3s ease;
+        }
+
+        .preview-container {
+            flex: 1;
+            background: #cbd5e1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            padding: 2.5rem 1rem;
+            scroll-behavior: smooth;
+            transition: all 0.3s ease;
+        }
+
+        /* --- Mobile Toggle Navigation --- */
+        .mobile-nav {
+            display: none;
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: white;
+            border-top: 1px solid var(--border-color);
+            padding: 0.5rem 1rem calc(0.5rem + var(--safe-area-bottom));
+            z-index: 100;
+            justify-content: space-around;
+            box-shadow: 0 -4px 10px rgba(0,0,0,0.05);
+        }
+
+        .mobile-nav-btn {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 4px;
+            background: none;
+            border: none;
+            color: var(--text-muted);
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .mobile-nav-btn.active { color: var(--primary-color); }
+
+        /* --- Responsive Breakpoints --- */
+        @media (max-width: 1024px) {
+            body { flex-direction: column; }
+            .editor-container { 
+                width: 100%; 
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                bottom: 60px; 
+                height: calc(100% - 60px); 
+            }
+            .preview-container { 
+                width: 100%; 
+                position: fixed; 
+                top: 0; 
+                left: 0; 
+                bottom: 60px; 
+                height: calc(100% - 60px); 
+                padding: 1rem 0.5rem;
+            }
+            .mobile-nav { display: flex; }
+            
+            body.view-preview .editor-container { transform: translateX(-100%); }
+            body.view-edit .preview-container { transform: translateX(100%); }
+            
+            .toolbar { width: 95% !important; margin-bottom: 0.5rem !important; }
+        }
+
+        /* --- Editor Elements --- */
+        .editor-header {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            background: #fff;
+        }
+        .editor-header h1 { font-size: 1.2rem; font-weight: 800; color: var(--primary-color); display: flex; align-items: center; gap: 8px; }
+
+        .editor-scroll {
+            flex: 1;
+            overflow-y: auto;
+            padding: 1.5rem;
+            padding-bottom: 5rem;
+            scroll-behavior: smooth;
+        }
+
+        .section-card { background: #fff; border: 1px solid var(--border-color); border-radius: 10px; margin-bottom: 1rem; }
+        .section-header { padding: 1rem; display: flex; justify-content: space-between; align-items: center; cursor: pointer; }
+        .section-header h3 { font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--text-muted); font-weight: 700; }
+        .section-body { padding: 0 1.25rem 1.25rem 1.25rem; }
+        .hidden { display: none; }
+
+        .form-group { margin-bottom: 1rem; }
+        .form-group label { display: block; font-size: 0.8rem; font-weight: 600; margin-bottom: 0.4rem; color: var(--text-main); }
+        .form-control {
+            width: 100%;
+            padding: 0.65rem 0.8rem;
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            font-size: 0.9rem;
+            background: #fcfcfd;
+        }
+        .form-control:focus { outline: none; border-color: var(--primary-color); background: #fff; }
+
+        .row { display: grid; grid-template-columns: 1fr 1fr; gap: 1rem; }
+        .row-time { display: grid; grid-template-columns: 1fr 8px 1fr; gap: 0; align-items: center; margin: 0.5rem 0; }
+        .row-time .divider { text-align: center; color: var(--text-muted); font-size: 0.8rem; }
+        @media (max-width: 480px) { 
+            .row { grid-template-columns: 1fr; gap: 0.5rem; }
+            .row-time { grid-template-columns: 1fr 8px 1fr; }
+        }
+
+        .item-entry { border: 1px solid var(--border-color); padding: 1rem; border-radius: 8px; margin-bottom: 1rem; position: relative; background: #f8fafc; }
+        .btn-delete { position: absolute; top: -10px; right: -10px; width: 24px; height: 24px; background: #ef4444; color: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; cursor: pointer; border: 2px solid white; font-size: 12px; }
+
+        .btn-add { width: 100%; padding: 0.7rem; background: white; border: 2px dashed var(--border-color); color: var(--text-muted); border-radius: 8px; cursor: pointer; font-weight: 600; display: flex; align-items: center; justify-content: center; gap: 0.5rem; }
+
+        .avatar-upload { display: flex; align-items: center; gap: 1.2rem; padding: 0.5rem 0; }
+        .avatar-preview-sm { width: 64px; height: 64px; border-radius: 12px; object-fit: cover; background: #f1f5f9; border: 2px solid var(--border-color); }
+
+        /* --- Preview UI --- */
+        .toolbar {
+            width: 210mm;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            margin-bottom: 1.5rem;
+            padding: 0.8rem 1.2rem;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: var(--shadow);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .resume-paper {
+            width: 210mm;
+            min-height: 296.8mm;
+            background: white;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.1);
+            padding: 15mm 18mm;
+            box-sizing: border-box;
+            position: relative;
+            color: #334155;
+            line-height: 1.5;
+            transform-origin: top center;
+        }
+
+        /* --- Resume Components --- */
+        .btn { padding: 0.6rem 1rem; border-radius: 8px; font-weight: 600; cursor: pointer; display: flex; align-items: center; gap: 0.5rem; border: none; font-size: 0.85rem; }
+        .btn-primary { background: var(--primary-color); color: white; }
+        .btn-outline { background: white; border: 1px solid var(--border-color); color: var(--text-main); }
+        .btn-active { border-color: var(--primary-color); background: #eff6ff; color: var(--primary-color); }
+
+        .item-content { font-size: 0.85rem; white-space: pre-wrap; text-align: justify; word-break: break-all; }
+
+        /* --- AI Polish Modal --- */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            align-items: center;
+            justify-content: center;
+        }
+        .modal-overlay.active { display: flex; }
+        .modal-content {
+            background: white;
+            border-radius: 12px;
+            width: 90%;
+            max-width: 700px;
+            max-height: 80vh;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+        .modal-header {
+            padding: 1.2rem 1.5rem;
+            border-bottom: 1px solid var(--border-color);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .modal-header h3 { font-size: 1.1rem; font-weight: 700; color: var(--text-main); }
+        .modal-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            color: var(--text-muted);
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 6px;
+        }
+        .modal-close:hover { background: var(--bg-gray); }
+        .modal-body {
+            padding: 1.5rem;
+            overflow-y: auto;
+            flex: 1;
+        }
+        .modal-footer {
+            padding: 1rem 1.5rem;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 0.8rem;
+            justify-content: flex-end;
+        }
+        .compare-section {
+            margin-bottom: 1.5rem;
+        }
+        .compare-section h4 {
+            font-size: 0.85rem;
+            font-weight: 700;
+            color: var(--text-muted);
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+        }
+        .compare-text {
+            padding: 1rem;
+            background: var(--bg-gray);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            white-space: pre-wrap;
+            border: 1px solid var(--border-color);
+        }
+        .polished-text {
+            background: #f0f9ff;
+            border-color: var(--primary-color);
+        }
+        .btn-polish {
+            padding: 0.4rem 0.8rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.3rem;
+            margin-top: 0.5rem;
+        }
+        .btn-polish:hover { opacity: 0.9; }
+        .btn-polish:disabled { opacity: 0.5; cursor: not-allowed; }
+        .loading-dots {
+            display: inline-block;
+        }
+        .loading-dots::after {
+            content: '';
+            animation: dots 1.5s steps(4, end) infinite;
+        }
+        @keyframes dots {
+            0%, 20% { content: ''; }
+            40% { content: '.'; }
+            60% { content: '..'; }
+            80%, 100% { content: '...'; }
+        }
+
+        /* --- Template A Details --- */
+        .tpl-minimalist .res-name { font-size: 2.2rem; font-weight: 800; color: #0f172a; line-height: 1.1; }
+        .tpl-minimalist .res-title { font-size: 1rem; color: var(--primary-color); font-weight: 600; margin-top: 0.4rem; }
+        .tpl-minimalist .res-contact { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 0.8rem; font-size: 0.8rem; color: var(--text-muted); }
+        .tpl-minimalist .section-title { font-size: 0.95rem; font-weight: 800; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 4px; margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+        .tpl-minimalist .item-header { display: flex; justify-content: space-between; font-weight: 700; color: #1e293b; font-size: 0.9rem; }
+        .tpl-minimalist .item-sub { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8rem; margin: 0.1rem 0 0.4rem 0; }
+
+        /* --- Template B Details --- */
+        .tpl-professional { display: flex; gap: 0; margin: -15mm -18mm; min-height: 297mm; }
+        .tpl-professional .side-col { width: 33%; background: #1e293b; color: #f1f5f9; padding: 15mm 1rem; }
+        .tpl-professional .main-col { width: 67%; background: white; padding: 15mm 1.2rem; }
+        .tpl-professional .side-title { font-size: 0.8rem; font-weight: 700; text-transform: uppercase; border-bottom: 1px solid #334155; padding-bottom: 0.4rem; margin-bottom: 0.8rem; color: var(--primary-color); }
+        .tpl-professional .side-text { font-size: 0.75rem; margin-bottom: 0.5rem; opacity: 0.9; }
+        .tpl-professional .res-name { font-size: 2rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem; }
+        .tpl-professional .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 1.2rem 0 0.8rem 0; padding-left: 10px; border-left: 4px solid var(--primary-color); }
+
+        .skill-tag { display: inline-block; padding: 0.1rem 0.5rem; background: #f1f5f9; border-radius: 4px; font-size: 0.7rem; margin: 0 4px 4px 0; font-weight: 600; color: #475569; }
+
+        @media print {
+            body { background: white; }
+            .editor-container, .toolbar, .mobile-nav { display: none; }
+            .preview-container { padding: 0; overflow: visible; background: white; position: static; transform: none !important; }
+            .resume-paper { box-shadow: none; transform: none !important; margin: 0; width: 210mm; }
+        }
+    </style>
+</head>
+<body class="view-edit">
+
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+        <button class="mobile-nav-btn active" id="nav-edit" onclick="switchView('edit')">
+            <i data-lucide="edit-3" size="20"></i>
+            <span>编辑</span>
+        </button>
+        <button class="mobile-nav-btn" id="nav-preview" onclick="switchView('preview')">
+            <i data-lucide="eye" size="20"></i>
+            <span>预览</span>
+        </button>
+        <button class="mobile-nav-btn" onclick="exportPDF()">
+            <i data-lucide="download" size="20"></i>
+            <span>导出</span>
+        </button>
+    </nav>
+
+    <!-- Editor Sidebar -->
+    <aside class="editor-container">
+        <header class="editor-header">
+            <h1><i data-lucide="file-text"></i> 简历编辑器</h1>
+            <div style="display: flex; gap: 0.8rem; align-items: center;">
+                <input type="color" id="theme-color-picker" value="#2563eb" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" title="自定义主题色">
+                <button class="btn btn-outline" id="btn-reset" style="padding: 0.4rem;" title="重置数据"><i data-lucide="refresh-cw" size="16"></i></button>
+            </div>
+        </header>
+
+        <div class="editor-scroll">
+            <!-- Basic Info -->
+            <div class="section-card">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>基础信息</h3>
+                    <i data-lucide="user" size="16"></i>
+                </div>
+                <div class="section-body">
+                    <div class="avatar-upload">
+                        <img src="" id="avatar-preview" class="avatar-preview-sm" alt="Avatar">
+                        <div style="flex: 1;">
+                            <label>更换头像</label>
+                            <input type="file" id="input-avatar" accept="image/*" class="form-control" style="font-size: 0.75rem;">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>姓名</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.name" placeholder="姓名">
+                        </div>
+                        <div class="form-group">
+                            <label>求职岗位</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.title" placeholder="如：前端开发工程师">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>电话</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.phone" placeholder="138-xxxx-xxxx">
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱</label>
+                            <input type="email" class="form-control bind-field" data-path="basics.email" placeholder="example@mail.com">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>所在地</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.location" placeholder="北京/上海">
+                        </div>
+                        <div class="form-group">
+                            <label>个人主页</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.website" placeholder="github.com/id">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Education -->
+            <div class="section-card">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>教育背景</h3>
+                    <i data-lucide="graduation-cap" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-education"></div>
+                    <button class="btn-add" onclick="addItem('education')"><i data-lucide="plus" size="14"></i> 添加教育经历</button>
+                </div>
+            </div>
+
+            <!-- Work Experience -->
+            <div class="section-card">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>工作经历</h3>
+                    <i data-lucide="briefcase" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-work"></div>
+                    <button class="btn-add" onclick="addItem('work')"><i data-lucide="plus" size="14"></i> 添加工作经历</button>
+                </div>
+            </div>
+
+            <!-- Projects -->
+            <div class="section-card">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>项目经验</h3>
+                    <i data-lucide="layers" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-projects"></div>
+                    <button class="btn-add" onclick="addItem('projects')"><i data-lucide="plus" size="14"></i> 添加项目经验</button>
+                </div>
+            </div>
+
+            <!-- Skills -->
+            <div class="section-card">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>技能标签</h3>
+                    <i data-lucide="code" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-skills" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;"></div>
+                    <div class="form-group">
+                        <input type="text" id="skill-input" class="form-control" placeholder="输入技能按回车添加" onkeydown="if(event.key==='Enter') addSkillTag()">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="section-card">
+                <div class="section-header" onclick="toggleSection(this)">
+                    <h3>自我评价</h3>
+                    <i data-lucide="align-left" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <textarea class="form-control bind-field" data-path="summary" rows="5" placeholder="简要描述您的核心竞争力..."></textarea>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- AI Polish Modal -->
+    <div class="modal-overlay" id="polish-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i data-lucide="sparkles"></i> AI 内容润色</h3>
+                <button class="modal-close" onclick="closePolishModal()">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="compare-section">
+                    <h4>原始内容</h4>
+                    <div class="compare-text" id="original-text"></div>
+                </div>
+                <div class="compare-section">
+                    <h4>润色后内容</h4>
+                    <div class="compare-text polished-text" id="polished-text">等待AI生成中...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closePolishModal()">取消</button>
+                <button class="btn btn-primary" id="apply-polish-btn" onclick="applyPolish()" disabled>
+                    <i data-lucide="check" size="16"></i> 应用润色
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Canvas -->
+    <main class="preview-container">i></div>
+        <div class="toolbar">
+            <div style="display: flex; gap: 0.4rem;">
+                <button class="btn btn-outline" id="btn-tpl-minimalist" onclick="switchTemplate('minimalist')" style="padding: 0.5rem 0.8rem;">简约</button>
+                <button class="btn btn-outline" id="btn-tpl-professional" onclick="switchTemplate('professional')" style="padding: 0.5rem 0.8rem;">商务</button>
+            </div>
+            <button class="btn btn-primary" onclick="exportPDF()">
+                <i data-lucide="download-cloud" size="16"></i> <span class="desktop-only">生成 PDF</span>
+            </button>
+        </div>
+
+        <div id="resume-content-wrapper" style="width: 100%; display: flex; justify-content: center;">
+            <div id="resume-content" class="resume-paper tpl-minimalist">
+                <!-- Content generated via JS -->
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- App State ---
+        let state = {
+            themeColor: '#2563eb',
+            template: 'minimalist',
+            basics: {
+                name: '陈美灵',
+                title: '高级前端开发工程师',
+                phone: '139-8888-6666',
+                email: 'meiling.chen@example.com',
+                location: '上海·徐汇',
+                website: 'github.com/meiling',
+                avatar: ''
+            },
+            education: [
+                { institution: '同济大学', area: '软件工程', studyType: '本科', startDate: '2016.09', endDate: '2020.06' }
+            ],
+            work: [
+                { company: '某大厂技术中心', position: '前端负责人', startDate: '2021.03', endDate: '至今', summary: '1. 主导了核心业务平台的重构，将首屏渲染速度提升了 60%；\n2. 负责设计并实现了企业级低代码平台，支撑了内部 50+ 项目的快速上线；\n3. 制定了团队前端规范与 CI/CD 流程，提升开发效率 30%。' }
+            ],
+            projects: [
+                { name: '个人简历编辑器', role: '独立开发者', startDate: '2023.10', endDate: '至今', description: '使用原生 JS + html2pdf 开发的高性能简历编辑工具，支持自适应布局与高清 PDF 导出。' }
+            ],
+            skills: ['React', 'Vue', 'TypeScript', 'Node.js', 'Vite', 'Three.js'],
+            summary: '5 年互联网从业经验，深耕前端工程化与性能优化。擅长处理复杂交互与跨端开发，具备良好的架构思维。'
+        };
+
+        // --- Core Logic ---
+
+        window.onload = () => {
+            loadState();
+            lucide.createIcons();
+            applyTheme();
+            renderForm();
+            renderPreview();
+            autoScalePreview();
+
+            const picker = document.getElementById('theme-color-picker');
+            picker.value = state.themeColor;
+            picker.oninput = (e) => {
+                state.themeColor = e.target.value;
+                applyTheme();
+                renderPreview();
+                saveState();
+            };
+
+            document.querySelectorAll('.bind-field').forEach(input => {
+                input.addEventListener('input', (e) => {
+                    const path = e.target.dataset.path.split('.');
+                    if (path.length === 1) state[path[0]] = e.target.value;
+                    else state[path[0]][path[1]] = e.target.value;
+                    saveState();
+                    renderPreview();
+                });
+            });
+
+            document.getElementById('input-avatar').onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (evt) => {
+                        state.basics.avatar = evt.target.result;
+                        document.getElementById('avatar-preview').src = evt.target.result;
+                        saveState();
+                        renderPreview();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+
+            document.getElementById('btn-reset').onclick = () => {
+                if(confirm('确定清空并恢复默认示例数据吗？')) {
+                    localStorage.removeItem('resume_data_v3');
+                    location.reload();
+                }
+            };
+
+            window.addEventListener('resize', autoScalePreview);
+        };
+
+        function applyTheme() {
+            document.documentElement.style.setProperty('--primary-color', state.themeColor);
+        }
+
+        function switchView(view) {
+            document.body.classList.remove('view-edit', 'view-preview');
+            document.body.classList.add(`view-${view}`);
+            
+            document.querySelectorAll('.mobile-nav-btn').forEach(b => b.classList.remove('active'));
+            document.getElementById(`nav-${view}`).classList.add('active');
+            
+            if (view === 'preview') autoScalePreview();
+        }
+
+        function autoScalePreview() {
+            const container = document.querySelector('.preview-container');
+            const paper = document.getElementById('resume-content');
+            if (!container || !paper) return;
+
+            const padding = window.innerWidth < 768 ? 20 : 80;
+            const containerWidth = container.offsetWidth - padding;
+            const paperWidth = 794; 
+            
+            if (containerWidth < paperWidth) {
+                const scale = containerWidth / paperWidth;
+                paper.style.transform = `scale(${scale})`;
+                paper.parentElement.style.height = (paper.offsetHeight * scale) + 'px';
+            } else {
+                paper.style.transform = 'none';
+                paper.parentElement.style.height = 'auto';
+            }
+        }
+
+        function toggleSection(header) {
+            const body = header.nextElementSibling;
+            body.classList.toggle('hidden');
+        }
+
+        function switchTemplate(tpl) {
+            state.template = tpl;
+            document.querySelectorAll('.toolbar .btn-outline').forEach(b => b.classList.remove('btn-active'));
+            document.getElementById(`btn-tpl-${tpl}`).classList.add('btn-active');
+            renderPreview();
+            autoScalePreview();
+            saveState();
+        }
+
+        function saveState() {
+            localStorage.setItem('resume_data_v3', JSON.stringify(state));
+        }
+
+        function loadState() {
+            const saved = localStorage.getItem('resume_data_v3');
+            if (saved) state = JSON.parse(saved);
+        }
+
+        function addItem(type) {
+            const models = {
+                education: { institution: '', area: '', studyType: '', startDate: '', endDate: '' },
+                work: { company: '', position: '', startDate: '', endDate: '', summary: '' },
+                projects: { name: '', role: '', startDate: '', endDate: '', description: '' }
+            };
+            state[type].push({...models[type]});
+            renderForm();
+            renderPreview();
+        }
+
+        function removeItem(type, index) {
+            state[type].splice(index, 1);
+            renderForm();
+            renderPreview();
+        }
+
+        function updateItem(type, index, field, value) {
+            state[type][index][field] = value;
+            saveState();
+            renderPreview();
+        }
+
+        function addSkillTag() {
+            const input = document.getElementById('skill-input');
+            const val = input.value.trim();
+            if (val && !state.skills.includes(val)) {
+                state.skills.push(val);
+                input.value = '';
+                renderForm();
+                renderPreview();
+                saveState();
+            }
+        }
+
+        function removeSkillTag(index) {
+            state.skills.splice(index, 1);
+            renderForm();
+            renderPreview();
+            saveState();
+        }
+
+        function renderForm() {
+            // 填充基础字段
+            document.querySelectorAll('.bind-field').forEach(input => {
+                const path = input.dataset.path.split('.');
+                input.value = path.length === 1 ? state[path[0]] : state[path[0]][path[1]];
+            });
+            if (state.basics.avatar) document.getElementById('avatar-preview').src = state.basics.avatar;
+
+            // 激活当前模板按钮
+            document.querySelectorAll('.toolbar .btn-outline').forEach(b => b.classList.remove('btn-active'));
+            document.getElementById(`btn-tpl-${state.template}`).classList.add('btn-active');
+
+            // 渲染教育经历（新增时间编辑）
+            document.getElementById('list-education').innerHTML = state.education.map((item, i) => `
+                <div class="item-entry">
+                    <div class="btn-delete" onclick="removeItem('education', ${i})">✕</div>
+                    <div class="row">
+                        <input class="form-control" placeholder="学校" value="${item.institution}" oninput="updateItem('education', ${i}, 'institution', this.value)">
+                        <input class="form-control" placeholder="专业" value="${item.area}" oninput="updateItem('education', ${i}, 'area', this.value)">
+                    </div>
+                    <div class="row">
+                        <input class="form-control" placeholder="学历 (如：本科/硕士)" value="${item.studyType}" oninput="updateItem('education', ${i}, 'studyType', this.value)">
+                    </div>
+                    <!-- 新增时间编辑行 -->
+                    <div class="row-time">
+                        <input class="form-control" placeholder="开始时间 (如：2016.09)" value="${item.startDate}" oninput="updateItem('education', ${i}, 'startDate', this.value)">
+                        <div class="divider">-</div>
+                        <input class="form-control" placeholder="结束时间 (如：2020.06)" value="${item.endDate}" oninput="updateItem('education', ${i}, 'endDate', this.value)">
+                    </div>
+                </div>
+            `).join('');
+
+            // 渲染工作经历（新增时间编辑）
+            document.getElementById('list-work').innerHTML = state.work.map((item, i) => `
+                <div class="item-entry">
+                    <div class="btn-delete" onclick="removeItem('work', ${i})">✕</div>
+                    <div class="row">
+                        <input class="form-control" placeholder="公司" value="${item.company}" oninput="updateItem('work', ${i}, 'company', this.value)">
+                        <input class="form-control" placeholder="职位" value="${item.position}" oninput="updateItem('work', ${i}, 'position', this.value)">
+                    </div>
+                    <!-- 新增时间编辑行 -->
+                    <div class="row-time">
+                        <input class="form-control" placeholder="开始时间 (如：2021.03)" value="${item.startDate}" oninput="updateItem('work', ${i}, 'startDate', this.value)">
+                        <div class="divider">-</div>
+                        <input class="form-control" placeholder="结束时间 (如：至今)" value="${item.endDate}" oninput="updateItem('work', ${i}, 'endDate', this.value)">
+                    </div>
+                    <textarea class="form-control" placeholder="工作内容" rows="3" style="margin-top:0.5rem" oninput="updateItem('work', ${i}, 'summary', this.value)">${item.summary}</textarea>
+                </div>
+            `).join('');
+
+            // 渲染项目经验（新增时间编辑）
+            document.getElementById('list-projects').innerHTML = state.projects.map((item, i) => `
+                <div class="item-entry">
+                    <div class="btn-delete" onclick="removeItem('projects', ${i})">✕</div>
+                    <div class="row">
+                        <input class="form-control" placeholder="项目名称" value="${item.name}" oninput="updateItem('projects', ${i}, 'name', this.value)">
+                        <input class="form-control" placeholder="担任角色" value="${item.role}" oninput="updateItem('projects', ${i}, 'role', this.value)">
+                    </div>
+                    <!-- 新增时间编辑行 -->
+                    <div class="row-time">
+                        <input class="form-control" placeholder="开始时间 (如：2023.10)" value="${item.startDate}" oninput="updateItem('projects', ${i}, 'startDate', this.value)">
+                        <div class="divider">-</div>
+                        <input class="form-control" placeholder="结束时间 (如：至今)" value="${item.endDate}" oninput="updateItem('projects', ${i}, 'endDate', this.value)">
+                    </div>
+                    <textarea class="form-control" placeholder="项目描述" rows="3" style="margin-top:0.5rem" oninput="updateItem('projects', ${i}, 'description', this.value)">${item.description}</textarea>
+                </div>
+            `).join('');
+
+            // 渲染技能标签
+            document.getElementById('list-skills').innerHTML = state.skills.map((s, i) => `
+                <div class="skill-tag" style="cursor:pointer;" onclick="removeSkillTag(${i})">${s} ×</div>
+            `).join('');
+        }
+
+        function renderPreview() {
+            const paper = document.getElementById('resume-content');
+            paper.className = `resume-paper tpl-${state.template}`;
+            
+            const avatarHtml = state.basics.avatar ? `<img src="${state.basics.avatar}" style="width:85px; height:105px; object-fit:cover; border-radius:4px; box-shadow:0 2px 5px rgba(0,0,0,0.1);">` : '';
+
+            // 工具函数：生成时间文本（为空则返回空字符串）
+            const getTimeText = (start, end) => {
+                if (!start && !end) return '';
+                return `${start || ''}${(start && end) ? ' - ' : ''}${end || ''}`;
+            };
+
+            if (state.template === 'minimalist') {
+                paper.innerHTML = `
+                    <header style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:1rem;">
+                        <div>
+                            <h1 class="res-name">${state.basics.name || '未填写姓名'}</h1>
+                            <p class="res-title">${state.basics.title || '未填写求职意向'}</p>
+                            <div class="res-contact">
+                                <span><i data-lucide="phone" size="10"></i> ${state.basics.phone || '未填写电话'}</span>
+                                <span><i data-lucide="mail" size="10"></i> ${state.basics.email || '未填写邮箱'}</span>
+                                <span><i data-lucide="map-pin" size="10"></i> ${state.basics.location || '未填写所在地'}</span>
+                            </div>
+                        </div>
+                        ${avatarHtml}
+                    </header>
+                    <section style="page-break-inside: avoid;">
+                        <h2 class="section-title"><i data-lucide="user" size="14"></i> 自我评价</h2>
+                        <div class="item-content">${state.summary || '未填写自我评价'}</div>
+                    </section>
+                    <section style="page-break-inside: avoid;">
+                        <h2 class="section-title"><i data-lucide="graduation-cap" size="14"></i> 教育背景</h2>
+                        ${state.education.length > 0 ? state.education.map(ed => {
+                            const timeText = getTimeText(ed.startDate, ed.endDate);
+                            const majorText = ed.area || '未填写专业';
+                            const degreeText = ed.studyType ? `${ed.studyType}` : '';
+                            // 拼接专业和学历，确保只有有值时才显示，且格式美观
+                            const subText = [majorText, degreeText].filter(Boolean).join(' | ');
+                            return `
+                            <div class="education-item" style="margin-bottom:0.5rem;">
+                                <div class="item-header">
+                                    <span>${ed.institution || '未填写学校'}</span>
+                                    ${timeText ? `<span>${timeText}</span>` : ''}
+                                </div>
+                                ${subText ? `<div class="item-sub"><span>${subText}</span></div>` : ''}
+                            </div>
+                            `;
+                        }).join('') : '<div class="item-content">未添加教育背景</div>'}
+                    </section>
+                    <section style="page-break-inside: avoid;">
+                        <h2 class="section-title"><i data-lucide="briefcase" size="14"></i> 工作经历</h2>
+                        ${state.work.length > 0 ? state.work.map(w => {
+                            const timeText = getTimeText(w.startDate, w.endDate);
+                            return `
+                            <div class="experience-item" style="margin-bottom:0.8rem;">
+                                <div class="item-header">
+                                    <span>${w.company || '未填写公司'}</span>
+                                    ${timeText ? `<span>${timeText}</span>` : ''}
+                                </div>
+                                <div class="item-sub"><span>${w.position || '未填写职位'}</span></div>
+                                <div class="item-content">${w.summary || '未填写工作内容'}</div>
+                            </div>
+                            `;
+                        }).join('') : '<div class="item-content">未添加工作经历</div>'}
+                    </section>
+                    <section style="page-break-inside: avoid;">
+                        <h2 class="section-title"><i data-lucide="layers" size="14"></i> 项目经验</h2>
+                        ${state.projects.length > 0 ? state.projects.map(p => {
+                            const timeText = getTimeText(p.startDate, p.endDate);
+                            return `
+                            <div class="project-item" style="margin-bottom:0.8rem;">
+                                <div class="item-header">
+                                    <span>${p.name || '未填写项目名称'}</span>
+                                    ${timeText ? `<span>${timeText}</span>` : ''}
+                                </div>
+                                <div class="item-sub"><span>${p.role || '未填写角色'}</span></div>
+                                <div class="item-content">${p.description || '未填写项目描述'}</div>
+                            </div>
+                            `;
+                        }).join('') : '<div class="item-content">未添加项目经验</div>'}
+                    </section>
+                    <section style="page-break-inside: avoid;">
+                        <h2 class="section-title"><i data-lucide="code" size="14"></i> 核心技能</h2>
+                        <div>${state.skills.length > 0 ? state.skills.map(s => `<span class="skill-tag">${s}</span>`).join('') : '未添加技能标签'}</div>
+                    </section>
+                `;
+            } else {
+                paper.innerHTML = `
+                    <div class="tpl-professional">
+                        <aside class="side-col">
+                            <div style="text-align:center; margin-bottom:1.5rem;">
+                                ${state.basics.avatar ? `<img src="${state.basics.avatar}" style="width:100px; height:100px; border-radius:50%; object-fit:cover; border:3px solid rgba(255,255,255,0.1);">` : ''}
+                            </div>
+                            <div class="side-section">
+                                <h3 class="side-title">联系信息</h3>
+                                <div class="side-text">${state.basics.phone || '未填写电话'}</div>
+                                <div class="side-text">${state.basics.email || '未填写邮箱'}</div>
+                                <div class="side-text">${state.basics.location || '未填写所在地'}</div>
+                            </div>
+                            <div class="side-section">
+                                <h3 class="side-title">技能专长</h3>
+                                <div style="display:flex; flex-wrap:wrap; gap:4px;">
+                                    ${state.skills.length > 0 ? state.skills.map(s => `<span style="font-size:0.7rem; background:rgba(255,255,255,0.1); padding:2px 5px; border-radius:3px;">${s}</span>`).join('') : '未添加技能'}
+                                </div>
+                            </div>
+                            <div class="side-section">
+                                <h3 class="side-title">教育背景</h3>
+                                ${state.education.length > 0 ? state.education.map(ed => {
+                                    const timeText = getTimeText(ed.startDate, ed.endDate);
+                                    const majorText = ed.area || '';
+                                    const degreeText = ed.studyType || '';
+                                    // 拼接专业、学历、时间，只保留有值的部分
+                                    const detailParts = [majorText];
+                                    if (timeText) detailParts.push(`(${timeText})`);
+                                    if (degreeText) detailParts.push(`[${degreeText}]`);
+                                    const detailText = detailParts.filter(Boolean).join(' ');
+                                    
+                                    return `
+                                    <div style="margin-bottom:0.8rem; font-size:0.75rem;">
+                                        <div style="font-weight:700;">${ed.institution || '未填写学校'}</div>
+                                        ${detailText ? `<div style="opacity:0.8;">${detailText}</div>` : ''}
+                                    </div>
+                                    `;
+                                }).join('') : '<div class="side-text">未添加教育背景</div>'}
+                            </div>
+                        </aside>
+                        <main class="main-col">
+                            <h1 class="res-name">${state.basics.name || '未填写姓名'}</h1>
+                            <p style="color:var(--primary-color); font-weight:600; font-size:1rem; margin-bottom:1.5rem;">${state.basics.title || '未填写求职意向'}</p>
+                            <section style="page-break-inside: avoid;">
+                                <h2 class="section-title">自我评价</h2>
+                                <div class="item-content">${state.summary || '未填写自我评价'}</div>
+                            </section>
+                            <section style="page-break-inside: avoid;">
+                                <h2 class="section-title">工作实战</h2>
+                                ${state.work.length > 0 ? state.work.map(w => {
+                                    const timeText = getTimeText(w.startDate, w.endDate);
+                                    return `
+                                    <div class="experience-item" style="margin-bottom:1rem;">
+                                        <div class="item-header">
+                                            <span>${w.company || '未填写公司'}</span>
+                                            ${timeText ? `<span style="font-weight:normal; font-size:0.75rem;">${timeText}</span>` : ''}
+                                        </div>
+                                        <div style="color:var(--primary-color); font-size:0.8rem; font-weight:600; margin-bottom:0.2rem;">${w.position || '未填写职位'}</div>
+                                        <div class="item-content">${w.summary || '未填写工作内容'}</div>
+                                    </div>
+                                    `;
+                                }).join('') : '<div class="item-content">未添加工作经历</div>'}
+                            </section>
+                            <section style="page-break-inside: avoid;">
+                                <h2 class="section-title">项目成果</h2>
+                                ${state.projects.length > 0 ? state.projects.map(p => {
+                                    const timeText = getTimeText(p.startDate, p.endDate);
+                                    return `
+                                    <div class="project-item" style="margin-bottom:1rem;">
+                                        <div class="item-header">
+                                            <span>${p.name || '未填写项目名称'}</span>
+                                            ${timeText ? `<span style="font-weight:normal; font-size:0.75rem;">${timeText}</span>` : ''}
+                                        </div>
+                                        <div style="font-size:0.8rem; font-style:italic; margin-bottom:0.2rem;">${p.role || '未填写角色'}</div>
+                                        <div class="item-content">${p.description || '未填写项目描述'}</div>
+                                    </div>
+                                    `;
+                                }).join('') : '<div class="item-content">未添加项目经验</div>'}
+                            </section>
+                        </main>
+                    </div>
+                `;
+            }
+            lucide.createIcons();
+        }
+
+        function exportPDF() {
+            const element = document.getElementById('resume-content');
+            const opt = {
+                margin: 0,
+                filename: `${state.basics.name || '我的简历'}-${state.basics.title || '简历'}.pdf`,
+                image: { type: 'jpeg', quality: 1 },
+                html2canvas: { scale: 2, useCORS: true },
+                jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+                pagebreak: { mode: ['css', 'legacy'] }
+            };
+            
+            const originalTransform = element.style.transform;
+            element.style.transform = 'none'; 
+
+            html2pdf().set(opt).from(element).save().then(() => {
+                element.style.transform = originalTransform;
+                alert('PDF导出成功！');
+            }).catch(err => {
+                element.style.transform = originalTransform;
+                alert('PDF导出失败，请重试！');
+                console.error('导出失败:', err);
+            });
+        }
+    </script>
+</body>
+</html>
