@@ -36,9 +36,12 @@
     <aside class="editor-container">
         <header class="editor-header">
             <h1><i data-lucide="file-text"></i> 简历编辑器</h1>
-            <div style="display: flex; gap: 0.8rem; align-items: center;">
-                <input type="color" id="theme-color-picker" value="#2563eb" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" title="自定义主题色">
-                <button class="btn btn-outline" id="btn-reset" style="padding: 0.4rem;" title="重置数据"><i data-lucide="refresh-cw" size="16"></i></button>
+            <div class="header-actions">
+                <label for="theme-color-picker" class="sr-only">自定义主题色</label>
+                <input type="color" id="theme-color-picker" value="#2563eb" title="自定义主题色">
+                <button class="btn btn-outline btn-icon" id="btn-reset" title="重置数据">
+                    <i data-lucide="refresh-cw" size="16"></i>
+                </button>
             </div>
         </header>
 
@@ -51,40 +54,40 @@
                 </div>
                 <div class="section-body">
                     <div class="avatar-upload">
-                        <img src="" id="avatar-preview" class="avatar-preview-sm" alt="Avatar">
-                        <div style="flex: 1;">
-                            <label>更换头像</label>
-                            <input type="file" id="input-avatar" accept="image/*" class="form-control" style="font-size: 0.75rem;">
+                        <img src="" id="avatar-preview" class="avatar-preview-sm" alt="用户头像预览">
+                        <div class="avatar-upload-controls">
+                            <label for="input-avatar">更换头像</label>
+                            <input type="file" id="input-avatar" accept="image/*" class="form-control avatar-file-input" title="选择头像图片文件">
                         </div>
                     </div>
                     <div class="row">
                         <div class="form-group">
-                            <label>姓名</label>
-                            <input type="text" class="form-control bind-field" data-path="basics.name" placeholder="姓名">
+                            <label for="input-name">姓名</label>
+                            <input type="text" id="input-name" class="form-control bind-field" data-path="basics.name" placeholder="请输入您的姓名">
                         </div>
                         <div class="form-group">
-                            <label>求职岗位</label>
-                            <input type="text" class="form-control bind-field" data-path="basics.title" placeholder="如：前端开发工程师">
-                        </div>
-                    </div>
-                    <div class="row">
-                        <div class="form-group">
-                            <label>电话</label>
-                            <input type="text" class="form-control bind-field" data-path="basics.phone" placeholder="138-xxxx-xxxx">
-                        </div>
-                        <div class="form-group">
-                            <label>邮箱</label>
-                            <input type="email" class="form-control bind-field" data-path="basics.email" placeholder="example@mail.com">
+                            <label for="input-title">求职岗位</label>
+                            <input type="text" id="input-title" class="form-control bind-field" data-path="basics.title" placeholder="如：前端开发工程师">
                         </div>
                     </div>
                     <div class="row">
                         <div class="form-group">
-                            <label>所在地</label>
-                            <input type="text" class="form-control bind-field" data-path="basics.location" placeholder="北京/上海">
+                            <label for="input-phone">电话</label>
+                            <input type="tel" id="input-phone" class="form-control bind-field" data-path="basics.phone" placeholder="138-xxxx-xxxx">
                         </div>
                         <div class="form-group">
-                            <label>个人主页</label>
-                            <input type="text" class="form-control bind-field" data-path="basics.website" placeholder="github.com/id">
+                            <label for="input-email">邮箱</label>
+                            <input type="email" id="input-email" class="form-control bind-field" data-path="basics.email" placeholder="example@mail.com">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label for="input-location">所在地</label>
+                            <input type="text" id="input-location" class="form-control bind-field" data-path="basics.location" placeholder="北京/上海">
+                        </div>
+                        <div class="form-group">
+                            <label for="input-website">个人主页</label>
+                            <input type="url" id="input-website" class="form-control bind-field" data-path="basics.website" placeholder="github.com/id">
                         </div>
                     </div>
                 </div>
@@ -133,9 +136,10 @@
                     <i data-lucide="code" size="16"></i>
                 </div>
                 <div class="section-body hidden">
-                    <div id="list-skills" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;"></div>
+                    <div id="list-skills" class="skills-container"></div>
                     <div class="form-group">
-                        <input type="text" id="skill-input" class="form-control" placeholder="输入技能按回车添加">
+                        <label for="skill-input" class="sr-only">添加技能标签</label>
+                        <input type="text" id="skill-input" class="form-control" placeholder="输入技能按回车添加" title="输入技能名称后按回车键添加">
                     </div>
                 </div>
             </div>
@@ -147,7 +151,10 @@
                     <i data-lucide="align-left" size="16"></i>
                 </div>
                 <div class="section-body hidden">
-                    <textarea class="form-control bind-field" data-path="summary" rows="5" placeholder="简要描述您的核心竞争力..."></textarea>
+                    <div class="form-group">
+                        <label for="input-summary" class="sr-only">自我评价</label>
+                        <textarea id="input-summary" class="form-control bind-field" data-path="summary" rows="5" placeholder="简要描述您的核心竞争力..."></textarea>
+                    </div>
                 </div>
             </div>
         </div>
@@ -182,16 +189,16 @@
     <!-- Preview Canvas -->
     <main class="preview-container">
         <div class="toolbar">
-            <div style="display: flex; gap: 0.4rem;">
-                <button class="btn btn-outline" id="btn-tpl-minimalist" style="padding: 0.5rem 0.8rem;">简约</button>
-                <button class="btn btn-outline" id="btn-tpl-professional" style="padding: 0.5rem 0.8rem;">商务</button>
+            <div class="template-buttons">
+                <button class="btn btn-outline btn-template" id="btn-tpl-minimalist" title="切换到简约模板">简约</button>
+                <button class="btn btn-outline btn-template" id="btn-tpl-professional" title="切换到商务模板">商务</button>
             </div>
-            <button class="btn btn-primary" id="btn-export-pdf">
+            <button class="btn btn-primary" id="btn-export-pdf" title="导出简历为PDF">
                 <i data-lucide="download-cloud" size="16"></i> <span class="desktop-only">生成 PDF</span>
             </button>
         </div>
 
-        <div id="resume-content-wrapper" style="width: 100%; display: flex; justify-content: center;">
+        <div id="resume-content-wrapper" class="resume-wrapper">
             <div id="resume-content" class="resume-paper tpl-minimalist">
                 <!-- Content generated via JS -->
             </div>
