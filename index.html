@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>极简简历 - 专业在线编辑器</title>
+    <!-- html2pdf.js for high-quality PDF export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+    <!-- Lucide icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- Main Styles -->
+    <link rel="stylesheet" href="css/main.css">
+    <!-- Template Styles -->
+    <link rel="stylesheet" href="css/templates/minimalist.css">
+    <link rel="stylesheet" href="css/templates/professional.css">
+</head>
+<body class="view-edit">
+
+    <!-- Mobile Navigation -->
+    <nav class="mobile-nav">
+        <button class="mobile-nav-btn active" id="nav-edit">
+            <i data-lucide="edit-3" size="20"></i>
+            <span>编辑</span>
+        </button>
+        <button class="mobile-nav-btn" id="nav-preview">
+            <i data-lucide="eye" size="20"></i>
+            <span>预览</span>
+        </button>
+        <button class="mobile-nav-btn" id="btn-export-mobile">
+            <i data-lucide="download" size="20"></i>
+            <span>导出</span>
+        </button>
+    </nav>
+
+    <!-- Editor Sidebar -->
+    <aside class="editor-container">
+        <header class="editor-header">
+            <h1><i data-lucide="file-text"></i> 简历编辑器</h1>
+            <div style="display: flex; gap: 0.8rem; align-items: center;">
+                <input type="color" id="theme-color-picker" value="#2563eb" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" title="自定义主题色">
+                <button class="btn btn-outline" id="btn-reset" style="padding: 0.4rem;" title="重置数据"><i data-lucide="refresh-cw" size="16"></i></button>
+            </div>
+        </header>
+
+        <div class="editor-scroll">
+            <!-- Basic Info -->
+            <div class="section-card">
+                <div class="section-header" id="toggle-basics">
+                    <h3>基础信息</h3>
+                    <i data-lucide="user" size="16"></i>
+                </div>
+                <div class="section-body">
+                    <div class="avatar-upload">
+                        <img src="" id="avatar-preview" class="avatar-preview-sm" alt="Avatar">
+                        <div style="flex: 1;">
+                            <label>更换头像</label>
+                            <input type="file" id="input-avatar" accept="image/*" class="form-control" style="font-size: 0.75rem;">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>姓名</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.name" placeholder="姓名">
+                        </div>
+                        <div class="form-group">
+                            <label>求职岗位</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.title" placeholder="如：前端开发工程师">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>电话</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.phone" placeholder="138-xxxx-xxxx">
+                        </div>
+                        <div class="form-group">
+                            <label>邮箱</label>
+                            <input type="email" class="form-control bind-field" data-path="basics.email" placeholder="example@mail.com">
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>所在地</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.location" placeholder="北京/上海">
+                        </div>
+                        <div class="form-group">
+                            <label>个人主页</label>
+                            <input type="text" class="form-control bind-field" data-path="basics.website" placeholder="github.com/id">
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Education -->
+            <div class="section-card">
+                <div class="section-header" id="toggle-education">
+                    <h3>教育背景</h3>
+                    <i data-lucide="graduation-cap" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-education"></div>
+                    <button class="btn-add" id="btn-add-education"><i data-lucide="plus" size="14"></i> 添加教育经历</button>
+                </div>
+            </div>
+
+            <!-- Work Experience -->
+            <div class="section-card">
+                <div class="section-header" id="toggle-work">
+                    <h3>工作经历</h3>
+                    <i data-lucide="briefcase" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-work"></div>
+                    <button class="btn-add" id="btn-add-work"><i data-lucide="plus" size="14"></i> 添加工作经历</button>
+                </div>
+            </div>
+
+            <!-- Projects -->
+            <div class="section-card">
+                <div class="section-header" id="toggle-projects">
+                    <h3>项目经验</h3>
+                    <i data-lucide="layers" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-projects"></div>
+                    <button class="btn-add" id="btn-add-projects"><i data-lucide="plus" size="14"></i> 添加项目经验</button>
+                </div>
+            </div>
+
+            <!-- Skills -->
+            <div class="section-card">
+                <div class="section-header" id="toggle-skills">
+                    <h3>技能标签</h3>
+                    <i data-lucide="code" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <div id="list-skills" style="display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px;"></div>
+                    <div class="form-group">
+                        <input type="text" id="skill-input" class="form-control" placeholder="输入技能按回车添加">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Summary -->
+            <div class="section-card">
+                <div class="section-header" id="toggle-summary">
+                    <h3>自我评价</h3>
+                    <i data-lucide="align-left" size="16"></i>
+                </div>
+                <div class="section-body hidden">
+                    <textarea class="form-control bind-field" data-path="summary" rows="5" placeholder="简要描述您的核心竞争力..."></textarea>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- AI Polish Modal -->
+    <div class="modal-overlay" id="polish-modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3><i data-lucide="sparkles"></i> AI 内容润色</h3>
+                <button class="modal-close" id="btn-close-modal">×</button>
+            </div>
+            <div class="modal-body">
+                <div class="compare-section">
+                    <h4>原始内容</h4>
+                    <div class="compare-text" id="original-text"></div>
+                </div>
+                <div class="compare-section">
+                    <h4>润色后内容</h4>
+                    <div class="compare-text polished-text" id="polished-text">等待AI生成中...</div>
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" id="btn-cancel-modal">取消</button>
+                <button class="btn btn-primary" id="apply-polish-btn" disabled>
+                    <i data-lucide="check" size="16"></i> 应用润色
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Preview Canvas -->
+    <main class="preview-container">
+        <div class="toolbar">
+            <div style="display: flex; gap: 0.4rem;">
+                <button class="btn btn-outline" id="btn-tpl-minimalist" style="padding: 0.5rem 0.8rem;">简约</button>
+                <button class="btn btn-outline" id="btn-tpl-professional" style="padding: 0.5rem 0.8rem;">商务</button>
+            </div>
+            <button class="btn btn-primary" id="btn-export-pdf">
+                <i data-lucide="download-cloud" size="16"></i> <span class="desktop-only">生成 PDF</span>
+            </button>
+        </div>
+
+        <div id="resume-content-wrapper" style="width: 100%; display: flex; justify-content: center;">
+            <div id="resume-content" class="resume-paper tpl-minimalist">
+                <!-- Content generated via JS -->
+            </div>
+        </div>
+    </main>
+
+    <!-- JavaScript Modules -->
+    <script src="js/state.js"></script>
+    <script src="js/utils.js"></script>
+    <script src="js/components/Form.js"></script>
+    <script src="js/components/Preview.js"></script>
+    <script src="js/modules/Template.js"></script>
+    <script src="js/modules/Export.js"></script>
+    <script src="js/modules/Storage.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>

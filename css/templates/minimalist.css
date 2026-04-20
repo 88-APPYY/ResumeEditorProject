@@ -1,0 +1,7 @@
+/* --- Template A: Minimalist Style --- */
+.tpl-minimalist .res-name { font-size: 2.2rem; font-weight: 800; color: #0f172a; line-height: 1.1; }
+.tpl-minimalist .res-title { font-size: 1rem; color: var(--primary-color); font-weight: 600; margin-top: 0.4rem; }
+.tpl-minimalist .res-contact { display: flex; flex-wrap: wrap; gap: 0.8rem; margin-top: 0.8rem; font-size: 0.8rem; color: var(--text-muted); }
+.tpl-minimalist .section-title { font-size: 0.95rem; font-weight: 800; color: var(--primary-color); border-bottom: 2px solid var(--primary-color); padding-bottom: 4px; margin: 1.5rem 0 0.8rem 0; display: flex; align-items: center; gap: 8px; text-transform: uppercase; }
+.tpl-minimalist .item-header { display: flex; justify-content: space-between; font-weight: 700; color: #1e293b; font-size: 0.9rem; }
+.tpl-minimalist .item-sub { display: flex; justify-content: space-between; color: var(--text-muted); font-size: 0.8rem; margin: 0.1rem 0 0.4rem 0; }
