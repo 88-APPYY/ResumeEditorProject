@@ -331,7 +331,14 @@
         /* 拖拽排序样式 */
         .item-entry { position: relative; transition: all 0.2s ease; }
         .item-entry.dragging { opacity: 0.5; transform: scale(1.02); z-index: 100; }
-        .item-entry.drag-over { border-top: 2px solid var(--primary-color); }
+        .item-entry.drag-over-top { 
+            border-top: 3px solid var(--primary-color) !important; 
+            border-bottom: none !important;
+        }
+        .item-entry.drag-over-bottom { 
+            border-bottom: 3px solid var(--primary-color) !important; 
+            border-top: none !important;
+        }
         .drag-handle { 
             position: absolute; 
             top: 50%; 
@@ -345,6 +352,7 @@
             padding: 4px;
             border-radius: 4px;
             transition: all 0.2s ease;
+            z-index: 10;
         }
         .drag-handle:hover { color: var(--primary-color); background: var(--bg-gray); }
         .drag-handle:active { cursor: grabbing; }
@@ -687,30 +695,8 @@
 
         // --- 拖拽排序函数 ---
         function initDragSort() {
-            document.querySelectorAll('.item-entry').forEach((item, index) => {
-                // 检查是否已经添加了拖拽事件
-                if (item.hasAttribute('draggable')) return;
-                
-                item.setAttribute('draggable', 'true');
-                item.setAttribute('data-index', index);
-                
-                // 确定类型
-                const parentList = item.parentElement;
-                if (parentList.id === 'list-education') {
-                    item.setAttribute('data-type', 'education');
-                } else if (parentList.id === 'list-work') {
-                    item.setAttribute('data-type', 'work');
-                } else if (parentList.id === 'list-projects') {
-                    item.setAttribute('data-type', 'projects');
-                }
-                
-                // 添加拖拽手柄
-                const handle = document.createElement('div');
-                handle.className = 'drag-handle';
-                handle.innerHTML = '<i data-lucide="grip-vertical" size="14"></i>';
-                item.insertBefore(handle, item.firstChild);
-                
-                // 绑定拖拽事件
+            // 为每个 item-entry 绑定拖拽事件
+            document.querySelectorAll('.item-entry').forEach((item) => {
                 item.addEventListener('dragstart', handleDragStart);
                 item.addEventListener('dragend', handleDragEnd);
                 item.addEventListener('dragover', handleDragOver);
@@ -735,6 +721,8 @@
             this.classList.remove('dragging');
             document.querySelectorAll('.item-entry').forEach(item => {
                 item.classList.remove('drag-over');
+                item.classList.remove('drag-over-top');
+                item.classList.remove('drag-over-bottom');
             });
             draggedElement = null;
             draggedIndex = -1;
@@ -748,36 +736,72 @@
             // 只允许同类型拖拽
             const targetType = this.getAttribute('data-type');
             if (targetType === dragType && this !== draggedElement) {
-                this.classList.add('drag-over');
+                // 计算鼠标位置，决定是在目标的上方还是下方
+                const rect = this.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
+                
+                // 移除旧的样式
+                this.classList.remove('drag-over-top');
+                this.classList.remove('drag-over-bottom');
+                
+                // 根据鼠标位置添加不同的样式
+                if (e.clientY < midY) {
+                    this.classList.add('drag-over-top');
+                } else {
+                    this.classList.add('drag-over-bottom');
+                }
             }
         }
 
         function handleDragLeave(e) {
-            this.classList.remove('drag-over');
+            this.classList.remove('drag-over-top');
+            this.classList.remove('drag-over-bottom');
         }
 
         function handleDrop(e) {
             e.preventDefault();
-            this.classList.remove('drag-over');
+            this.classList.remove('drag-over-top');
+            this.classList.remove('drag-over-bottom');
             
             const targetType = this.getAttribute('data-type');
             const targetIndex = parseInt(this.getAttribute('data-index'));
             
             // 只处理同类型且不同位置的拖拽
             if (targetType === dragType && targetIndex !== draggedIndex) {
-                // 保存当前状态到历史记录
-                saveHistory(`调整${getSectionName(dragType)}顺序`);
+                // 计算鼠标位置，决定插入位置
+                const rect = this.getBoundingClientRect();
+                const midY = rect.top + rect.height / 2;
                 
-                // 交换数组元素
-                const array = state[dragType];
-                const element = array.splice(draggedIndex, 1)[0];
-                array.splice(targetIndex, 0, element);
+                let insertIndex;
+                if (e.clientY < midY) {
+                    // 鼠标在目标元素的上半部分，插入到目标前面
+                    insertIndex = targetIndex;
+                } else {
+                    // 鼠标在目标元素的下半部分，插入到目标后面
+                    insertIndex = targetIndex + 1;
+                }
                 
-                // 重新渲染
-                renderForm();
-                renderPreview();
-                saveState();
-                initDragSort();
+                // 调整插入位置（考虑拖拽元素的位置影响）
+                if (draggedIndex < insertIndex) {
+                    // 如果拖拽元素在插入位置之前，插入位置需要减 1
+                    insertIndex--;
+                }
+                
+                // 只有当插入位置不同时才执行
+                if (insertIndex !== draggedIndex) {
+                    // 保存当前状态到历史记录
+                    saveHistory(`调整${getSectionName(dragType)}顺序`);
+                    
+                    // 移动数组元素
+                    const array = state[dragType];
+                    const element = array.splice(draggedIndex, 1)[0];
+                    array.splice(insertIndex, 0, element);
+                    
+                    // 重新渲染
+                    renderForm();
+                    renderPreview();
+                    saveState();
+                }
             }
         }
 
@@ -1035,7 +1059,8 @@
 
             // 渲染教育经历（新增时间编辑）
             document.getElementById('list-education').innerHTML = state.education.map((item, i) => `
-                <div class="item-entry">
+                <div class="item-entry" draggable="true" data-index="${i}" data-type="education">
+                    <div class="drag-handle"><i data-lucide="grip-vertical" size="14"></i></div>
                     <div class="btn-delete" onclick="removeItem('education', ${i})">✕</div>
                     <div class="row">
                         <input class="form-control" placeholder="学校" value="${item.institution}" oninput="updateItem('education', ${i}, 'institution', this.value)">
@@ -1055,7 +1080,8 @@
 
             // 渲染工作经历（新增时间编辑）
             document.getElementById('list-work').innerHTML = state.work.map((item, i) => `
-                <div class="item-entry">
+                <div class="item-entry" draggable="true" data-index="${i}" data-type="work">
+                    <div class="drag-handle"><i data-lucide="grip-vertical" size="14"></i></div>
                     <div class="btn-delete" onclick="removeItem('work', ${i})">✕</div>
                     <div class="row">
                         <input class="form-control" placeholder="公司" value="${item.company}" oninput="updateItem('work', ${i}, 'company', this.value)">
@@ -1073,7 +1099,8 @@
 
             // 渲染项目经验（新增时间编辑）
             document.getElementById('list-projects').innerHTML = state.projects.map((item, i) => `
-                <div class="item-entry">
+                <div class="item-entry" draggable="true" data-index="${i}" data-type="projects">
+                    <div class="drag-handle"><i data-lucide="grip-vertical" size="14"></i></div>
                     <div class="btn-delete" onclick="removeItem('projects', ${i})">✕</div>
                     <div class="row">
                         <input class="form-control" placeholder="项目名称" value="${item.name}" oninput="updateItem('projects', ${i}, 'name', this.value)">
