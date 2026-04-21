@@ -326,7 +326,13 @@
         .tpl-professional .res-name { font-size: 2rem; font-weight: 800; color: #0f172a; margin-bottom: 0.2rem; }
         .tpl-professional .section-title { font-size: 1rem; font-weight: 700; color: #0f172a; margin: 1.2rem 0 0.8rem 0; padding-left: 10px; border-left: 4px solid var(--primary-color); }
 
-        .skill-tag { display: inline-block; padding: 0.1rem 0.5rem; background: #f1f5f9; border-radius: 4px; font-size: 0.7rem; margin: 0 4px 4px 0; font-weight: 600; color: #475569; }
+        .skill-tag { display: inline-block; padding: 0.1rem 0.5rem; background: #f1f5f9; border-radius: 4px; font-size: 0.7rem; margin: 0 4px 4px 0; font-weight: 600; color: #475569; transition: all 0.2s ease; }
+        .skill-tag.dragging { opacity: 0.5; transform: scale(1.1); }
+        .skill-tag.skill-drag-over { 
+            outline: 2px solid var(--primary-color); 
+            outline-offset: 2px;
+            background: #eff6ff;
+        }
 
         /* 拖拽排序样式 */
         .item-entry { position: relative; transition: all 0.2s ease; }
@@ -693,37 +699,56 @@
             }
         }
 
-        // --- 拖拽排序函数 ---
+        // --- 拖拽排序函数（使用事件委托）---
+        
         function initDragSort() {
-            // 为每个 item-entry 绑定拖拽事件
-            document.querySelectorAll('.item-entry').forEach((item) => {
-                item.addEventListener('dragstart', handleDragStart);
-                item.addEventListener('dragend', handleDragEnd);
-                item.addEventListener('dragover', handleDragOver);
-                item.addEventListener('dragleave', handleDragLeave);
-                item.addEventListener('drop', handleDrop);
-            });
+            // 只需绑定一次事件委托，在 window.onload 中调用
+            document.addEventListener('dragstart', handleDragStart);
+            document.addEventListener('dragend', handleDragEnd);
+            document.addEventListener('dragover', handleDragOver);
+            document.addEventListener('dragleave', handleDragLeave);
+            document.addEventListener('drop', handleDrop);
             
             lucide.createIcons();
         }
 
         function handleDragStart(e) {
-            draggedElement = this;
-            draggedIndex = parseInt(this.getAttribute('data-index'));
-            dragType = this.getAttribute('data-type');
+            // 使用事件委托，检查目标是否是可拖拽元素
+            let target = e.target;
             
-            this.classList.add('dragging');
+            // 如果点击的是拖拽手柄或子元素，找到最近的父级可拖拽元素
+            while (target && !target.hasAttribute('draggable')) {
+                target = target.parentElement;
+            }
+            
+            if (!target || !target.getAttribute('draggable')) return;
+            
+            draggedElement = target;
+            draggedIndex = parseInt(target.getAttribute('data-index'));
+            dragType = target.getAttribute('data-type');
+            
+            target.classList.add('dragging');
             e.dataTransfer.effectAllowed = 'move';
             e.dataTransfer.setData('text/plain', dragType);
+            
+            // 设置拖拽时的半透明效果
+            if (e.dataTransfer.setDragImage) {
+                e.dataTransfer.setDragImage(target, 20, 20);
+            }
         }
 
         function handleDragEnd(e) {
-            this.classList.remove('dragging');
-            document.querySelectorAll('.item-entry').forEach(item => {
-                item.classList.remove('drag-over');
-                item.classList.remove('drag-over-top');
-                item.classList.remove('drag-over-bottom');
+            if (draggedElement) {
+                draggedElement.classList.remove('dragging');
+            }
+            
+            // 清除所有拖拽样式
+            document.querySelectorAll('.drag-over-top, .drag-over-bottom, .skill-drag-over').forEach(el => {
+                el.classList.remove('drag-over-top');
+                el.classList.remove('drag-over-bottom');
+                el.classList.remove('skill-drag-over');
             });
+            
             draggedElement = null;
             draggedIndex = -1;
             dragType = '';
@@ -733,52 +758,97 @@
             e.preventDefault();
             e.dataTransfer.dropEffect = 'move';
             
+            // 使用事件委托，找到最近的可拖拽目标元素
+            let target = e.target;
+            while (target && !target.hasAttribute('draggable')) {
+                target = target.parentElement;
+            }
+            
+            if (!target || !target.hasAttribute('draggable')) return;
+            
             // 只允许同类型拖拽
-            const targetType = this.getAttribute('data-type');
-            if (targetType === dragType && this !== draggedElement) {
-                // 计算鼠标位置，决定是在目标的上方还是下方
-                const rect = this.getBoundingClientRect();
-                const midY = rect.top + rect.height / 2;
+            const targetType = target.getAttribute('data-type');
+            if (targetType === dragType && target !== draggedElement) {
                 
-                // 移除旧的样式
-                this.classList.remove('drag-over-top');
-                this.classList.remove('drag-over-bottom');
-                
-                // 根据鼠标位置添加不同的样式
-                if (e.clientY < midY) {
-                    this.classList.add('drag-over-top');
+                if (dragType === 'skills') {
+                    // 技能标签的拖拽反馈（水平方向）
+                    target.classList.add('skill-drag-over');
                 } else {
-                    this.classList.add('drag-over-bottom');
+                    // 大组件的拖拽反馈（垂直方向）
+                    const rect = target.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    
+                    target.classList.remove('drag-over-top');
+                    target.classList.remove('drag-over-bottom');
+                    
+                    if (e.clientY < midY) {
+                        target.classList.add('drag-over-top');
+                    } else {
+                        target.classList.add('drag-over-bottom');
+                    }
                 }
             }
         }
 
         function handleDragLeave(e) {
-            this.classList.remove('drag-over-top');
-            this.classList.remove('drag-over-bottom');
+            let target = e.target;
+            while (target && !target.hasAttribute('draggable')) {
+                target = target.parentElement;
+            }
+            
+            if (target) {
+                target.classList.remove('drag-over-top');
+                target.classList.remove('drag-over-bottom');
+                target.classList.remove('skill-drag-over');
+            }
         }
 
         function handleDrop(e) {
             e.preventDefault();
-            this.classList.remove('drag-over-top');
-            this.classList.remove('drag-over-bottom');
             
-            const targetType = this.getAttribute('data-type');
-            const targetIndex = parseInt(this.getAttribute('data-index'));
+            // 使用事件委托，找到最近的可拖拽目标元素
+            let target = e.target;
+            while (target && !target.hasAttribute('draggable')) {
+                target = target.parentElement;
+            }
+            
+            if (!target || !target.hasAttribute('draggable')) return;
+            
+            // 清除拖拽样式
+            target.classList.remove('drag-over-top');
+            target.classList.remove('drag-over-bottom');
+            target.classList.remove('skill-drag-over');
+            
+            const targetType = target.getAttribute('data-type');
+            const targetIndex = parseInt(target.getAttribute('data-index'));
             
             // 只处理同类型且不同位置的拖拽
             if (targetType === dragType && targetIndex !== draggedIndex) {
-                // 计算鼠标位置，决定插入位置
-                const rect = this.getBoundingClientRect();
-                const midY = rect.top + rect.height / 2;
                 
                 let insertIndex;
-                if (e.clientY < midY) {
-                    // 鼠标在目标元素的上半部分，插入到目标前面
-                    insertIndex = targetIndex;
+                
+                if (dragType === 'skills') {
+                    // 技能标签：水平方向，根据鼠标位置判断左右
+                    const rect = target.getBoundingClientRect();
+                    const midX = rect.left + rect.width / 2;
+                    
+                    if (e.clientX < midX) {
+                        // 鼠标在目标元素的左半部分，插入到目标前面
+                        insertIndex = targetIndex;
+                    } else {
+                        // 鼠标在目标元素的右半部分，插入到目标后面
+                        insertIndex = targetIndex + 1;
+                    }
                 } else {
-                    // 鼠标在目标元素的下半部分，插入到目标后面
-                    insertIndex = targetIndex + 1;
+                    // 大组件：垂直方向
+                    const rect = target.getBoundingClientRect();
+                    const midY = rect.top + rect.height / 2;
+                    
+                    if (e.clientY < midY) {
+                        insertIndex = targetIndex;
+                    } else {
+                        insertIndex = targetIndex + 1;
+                    }
                 }
                 
                 // 调整插入位置（考虑拖拽元素的位置影响）
@@ -809,7 +879,8 @@
             const names = {
                 education: '教育背景',
                 work: '工作经历',
-                projects: '项目经验'
+                projects: '项目经验',
+                skills: '技能标签'
             };
             return names[type] || type;
         }
@@ -1118,11 +1189,11 @@
 
             // 渲染技能标签
             document.getElementById('list-skills').innerHTML = state.skills.map((s, i) => `
-                <div class="skill-tag" style="cursor:pointer;" onclick="removeSkillTag(${i})">${s} ×</div>
+                <div class="skill-tag skill-draggable" draggable="true" data-index="${i}" data-type="skills" style="cursor:grab;" onclick="removeSkillTag(${i})">
+                    <i data-lucide="grip-vertical" size="10" style="display:inline-block; margin-right:2px; opacity:0.6;"></i>
+                    ${s} ×
+                </div>
             `).join('');
-            
-            // 初始化拖拽排序
-            initDragSort();
         }
 
         function renderPreview() {
