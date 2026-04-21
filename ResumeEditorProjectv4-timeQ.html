@@ -328,6 +328,60 @@
 
         .skill-tag { display: inline-block; padding: 0.1rem 0.5rem; background: #f1f5f9; border-radius: 4px; font-size: 0.7rem; margin: 0 4px 4px 0; font-weight: 600; color: #475569; }
 
+        /* 拖拽排序样式 */
+        .item-entry { position: relative; transition: all 0.2s ease; }
+        .item-entry.dragging { opacity: 0.5; transform: scale(1.02); z-index: 100; }
+        .item-entry.drag-over { border-top: 2px solid var(--primary-color); }
+        .drag-handle { 
+            position: absolute; 
+            top: 50%; 
+            left: -25px; 
+            transform: translateY(-50%); 
+            cursor: grab; 
+            color: var(--text-muted); 
+            display: flex; 
+            align-items: center; 
+            justify-content: center;
+            padding: 4px;
+            border-radius: 4px;
+            transition: all 0.2s ease;
+        }
+        .drag-handle:hover { color: var(--primary-color); background: var(--bg-gray); }
+        .drag-handle:active { cursor: grabbing; }
+        .item-list { position: relative; }
+        .item-list .item-entry { margin-left: 25px; }
+
+        /* 撤销/重做按钮样式 */
+        .undo-redo-btn {
+            padding: 0.4rem;
+            background: transparent;
+            border: none;
+            cursor: pointer;
+            color: var(--text-muted);
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .undo-redo-btn:hover { background: var(--bg-gray); color: var(--text-main); }
+        .undo-redo-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+        .undo-redo-btn.active { color: var(--primary-color); }
+
+        /* 键盘快捷键提示 */
+        .shortcut-hint {
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+            text-align: center;
+            opacity: 0;
+            transition: opacity 0.2s ease;
+        }
+        .undo-redo-btn:hover + .shortcut-hint,
+        .editor-header:hover .shortcut-hint {
+            opacity: 1;
+        }
+
         @media print {
             body { background: white; }
             .editor-container, .toolbar, .mobile-nav { display: none; }
@@ -358,7 +412,14 @@
     <aside class="editor-container">
         <header class="editor-header">
             <h1><i data-lucide="file-text"></i> 简历编辑器</h1>
-            <div style="display: flex; gap: 0.8rem; align-items: center;">
+            <div style="display: flex; gap: 0.4rem; align-items: center;">
+                <button class="undo-redo-btn" id="btn-undo" onclick="undo()" title="撤销 (Ctrl+Z)">
+                    <i data-lucide="undo-2" size="16"></i>
+                </button>
+                <button class="undo-redo-btn" id="btn-redo" onclick="redo()" title="重做 (Ctrl+Y)">
+                    <i data-lucide="redo-2" size="16"></i>
+                </button>
+                <div style="width: 1px; height: 20px; background: var(--border-color); margin: 0 0.2rem;"></div>
                 <input type="color" id="theme-color-picker" value="#2563eb" style="width:24px; height:24px; border:none; cursor:pointer; background:none;" title="自定义主题色">
                 <button class="btn btn-outline" id="btn-reset" style="padding: 0.4rem;" title="重置数据"><i data-lucide="refresh-cw" size="16"></i></button>
             </div>
@@ -547,7 +608,187 @@
             summary: '5 年互联网从业经验，深耕前端工程化与性能优化。擅长处理复杂交互与跨端开发，具备良好的架构思维。'
         };
 
+        // --- 历史记录栈（用于撤销/重做）---
+        let historyStack = [];
+        let historyIndex = -1;
+        const MAX_HISTORY = 50; // 最大历史记录数
+
+        // --- 拖拽排序相关变量 ---
+        let draggedElement = null;
+        let draggedIndex = -1;
+        let dragType = ''; // 'education', 'work', 'projects'
+
         // --- Core Logic ---
+
+        // --- 历史记录函数 ---
+        function saveHistory(description = '修改') {
+            // 移除当前位置之后的历史记录
+            if (historyIndex < historyStack.length - 1) {
+                historyStack = historyStack.slice(0, historyIndex + 1);
+            }
+            
+            // 保存当前状态的深拷贝
+            const stateCopy = JSON.parse(JSON.stringify(state));
+            historyStack.push({ state: stateCopy, description });
+            
+            // 限制历史记录数量
+            if (historyStack.length > MAX_HISTORY) {
+                historyStack.shift();
+            } else {
+                historyIndex++;
+            }
+            
+            if (historyIndex >= MAX_HISTORY) {
+                historyIndex = MAX_HISTORY - 1;
+            }
+            
+            updateUndoRedoButtons();
+        }
+
+        function undo() {
+            if (historyIndex > 0) {
+                historyIndex--;
+                const historyItem = historyStack[historyIndex];
+                state = JSON.parse(JSON.stringify(historyItem.state));
+                
+                renderForm();
+                renderPreview();
+                saveState();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function redo() {
+            if (historyIndex < historyStack.length - 1) {
+                historyIndex++;
+                const historyItem = historyStack[historyIndex];
+                state = JSON.parse(JSON.stringify(historyItem.state));
+                
+                renderForm();
+                renderPreview();
+                saveState();
+                updateUndoRedoButtons();
+            }
+        }
+
+        function updateUndoRedoButtons() {
+            const undoBtn = document.getElementById('btn-undo');
+            const redoBtn = document.getElementById('btn-redo');
+            
+            if (undoBtn) {
+                undoBtn.disabled = historyIndex <= 0;
+                undoBtn.classList.toggle('active', historyIndex > 0);
+            }
+            if (redoBtn) {
+                redoBtn.disabled = historyIndex >= historyStack.length - 1;
+                redoBtn.classList.toggle('active', historyIndex < historyStack.length - 1);
+            }
+        }
+
+        // --- 拖拽排序函数 ---
+        function initDragSort() {
+            document.querySelectorAll('.item-entry').forEach((item, index) => {
+                // 检查是否已经添加了拖拽事件
+                if (item.hasAttribute('draggable')) return;
+                
+                item.setAttribute('draggable', 'true');
+                item.setAttribute('data-index', index);
+                
+                // 确定类型
+                const parentList = item.parentElement;
+                if (parentList.id === 'list-education') {
+                    item.setAttribute('data-type', 'education');
+                } else if (parentList.id === 'list-work') {
+                    item.setAttribute('data-type', 'work');
+                } else if (parentList.id === 'list-projects') {
+                    item.setAttribute('data-type', 'projects');
+                }
+                
+                // 添加拖拽手柄
+                const handle = document.createElement('div');
+                handle.className = 'drag-handle';
+                handle.innerHTML = '<i data-lucide="grip-vertical" size="14"></i>';
+                item.insertBefore(handle, item.firstChild);
+                
+                // 绑定拖拽事件
+                item.addEventListener('dragstart', handleDragStart);
+                item.addEventListener('dragend', handleDragEnd);
+                item.addEventListener('dragover', handleDragOver);
+                item.addEventListener('dragleave', handleDragLeave);
+                item.addEventListener('drop', handleDrop);
+            });
+            
+            lucide.createIcons();
+        }
+
+        function handleDragStart(e) {
+            draggedElement = this;
+            draggedIndex = parseInt(this.getAttribute('data-index'));
+            dragType = this.getAttribute('data-type');
+            
+            this.classList.add('dragging');
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', dragType);
+        }
+
+        function handleDragEnd(e) {
+            this.classList.remove('dragging');
+            document.querySelectorAll('.item-entry').forEach(item => {
+                item.classList.remove('drag-over');
+            });
+            draggedElement = null;
+            draggedIndex = -1;
+            dragType = '';
+        }
+
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            
+            // 只允许同类型拖拽
+            const targetType = this.getAttribute('data-type');
+            if (targetType === dragType && this !== draggedElement) {
+                this.classList.add('drag-over');
+            }
+        }
+
+        function handleDragLeave(e) {
+            this.classList.remove('drag-over');
+        }
+
+        function handleDrop(e) {
+            e.preventDefault();
+            this.classList.remove('drag-over');
+            
+            const targetType = this.getAttribute('data-type');
+            const targetIndex = parseInt(this.getAttribute('data-index'));
+            
+            // 只处理同类型且不同位置的拖拽
+            if (targetType === dragType && targetIndex !== draggedIndex) {
+                // 保存当前状态到历史记录
+                saveHistory(`调整${getSectionName(dragType)}顺序`);
+                
+                // 交换数组元素
+                const array = state[dragType];
+                const element = array.splice(draggedIndex, 1)[0];
+                array.splice(targetIndex, 0, element);
+                
+                // 重新渲染
+                renderForm();
+                renderPreview();
+                saveState();
+                initDragSort();
+            }
+        }
+
+        function getSectionName(type) {
+            const names = {
+                education: '教育背景',
+                work: '工作经历',
+                projects: '项目经验'
+            };
+            return names[type] || type;
+        }
 
         window.onload = () => {
             loadState();
@@ -556,10 +797,15 @@
             renderForm();
             renderPreview();
             autoScalePreview();
+            initDragSort();
+            
+            // 保存初始状态到历史记录
+            saveHistory('初始状态');
 
             const picker = document.getElementById('theme-color-picker');
             picker.value = state.themeColor;
             picker.oninput = (e) => {
+                saveHistory('修改主题色');
                 state.themeColor = e.target.value;
                 applyTheme();
                 renderPreview();
@@ -567,12 +813,25 @@
             };
 
             document.querySelectorAll('.bind-field').forEach(input => {
+                let inputTimeout;
                 input.addEventListener('input', (e) => {
-                    const path = e.target.dataset.path.split('.');
-                    if (path.length === 1) state[path[0]] = e.target.value;
-                    else state[path[0]][path[1]] = e.target.value;
-                    saveState();
-                    renderPreview();
+                    // 使用防抖，避免每次按键都保存历史记录
+                    clearTimeout(inputTimeout);
+                    inputTimeout = setTimeout(() => {
+                        const path = e.target.dataset.path.split('.');
+                        const oldValue = path.length === 1 ? state[path[0]] : state[path[0]][path[1]];
+                        
+                        if (path.length === 1) state[path[0]] = e.target.value;
+                        else state[path[0]][path[1]] = e.target.value;
+                        
+                        // 只有值实际改变时才保存历史
+                        if (oldValue !== e.target.value) {
+                            saveHistory(`编辑${getFieldName(path)}`);
+                        }
+                        
+                        saveState();
+                        renderPreview();
+                    }, 500); // 500ms 防抖
                 });
             });
 
@@ -581,6 +840,7 @@
                 if (file) {
                     const reader = new FileReader();
                     reader.onload = (evt) => {
+                        saveHistory('更换头像');
                         state.basics.avatar = evt.target.result;
                         document.getElementById('avatar-preview').src = evt.target.result;
                         saveState();
@@ -597,8 +857,36 @@
                 }
             };
 
+            // 键盘快捷键支持
+            document.addEventListener('keydown', (e) => {
+                // Ctrl+Z 撤销
+                if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
+                    e.preventDefault();
+                    undo();
+                }
+                // Ctrl+Y 或 Ctrl+Shift+Z 重做
+                if ((e.ctrlKey || e.metaKey) && (e.key === 'y' || (e.key === 'z' && e.shiftKey))) {
+                    e.preventDefault();
+                    redo();
+                }
+            });
+
             window.addEventListener('resize', autoScalePreview);
         };
+
+        function getFieldName(path) {
+            const names = {
+                'basics.name': '姓名',
+                'basics.title': '求职岗位',
+                'basics.phone': '电话',
+                'basics.email': '邮箱',
+                'basics.location': '所在地',
+                'basics.website': '个人主页',
+                'summary': '自我评价'
+            };
+            const fullPath = path.join('.');
+            return names[fullPath] || fullPath;
+        }
 
         function applyTheme() {
             document.documentElement.style.setProperty('--primary-color', state.themeColor);
@@ -639,12 +927,15 @@
         }
 
         function switchTemplate(tpl) {
-            state.template = tpl;
-            document.querySelectorAll('.toolbar .btn-outline').forEach(b => b.classList.remove('btn-active'));
-            document.getElementById(`btn-tpl-${tpl}`).classList.add('btn-active');
-            renderPreview();
-            autoScalePreview();
-            saveState();
+            if (state.template !== tpl) {
+                saveHistory(`切换模板为${tpl === 'minimalist' ? '简约' : '商务'}`);
+                state.template = tpl;
+                document.querySelectorAll('.toolbar .btn-outline').forEach(b => b.classList.remove('btn-active'));
+                document.getElementById(`btn-tpl-${tpl}`).classList.add('btn-active');
+                renderPreview();
+                autoScalePreview();
+                saveState();
+            }
         }
 
         function saveState() {
@@ -662,27 +953,57 @@
                 work: { company: '', position: '', startDate: '', endDate: '', summary: '' },
                 projects: { name: '', role: '', startDate: '', endDate: '', description: '' }
             };
+            saveHistory(`添加${getSectionName(type)}`);
             state[type].push({...models[type]});
             renderForm();
             renderPreview();
+            saveState();
         }
 
         function removeItem(type, index) {
+            saveHistory(`删除${getSectionName(type)}`);
             state[type].splice(index, 1);
             renderForm();
             renderPreview();
+            saveState();
         }
 
+        // 防抖计时器，用于 updateItem
+        let updateItemTimeout = null;
+        let pendingUpdates = {};
+
         function updateItem(type, index, field, value) {
+            // 生成唯一键
+            const key = `${type}-${index}-${field}`;
+            
+            // 清除之前的定时器
+            if (pendingUpdates[key]) {
+                clearTimeout(pendingUpdates[key]);
+            }
+            
+            // 记录旧值
+            const oldValue = state[type][index][field];
+            
+            // 立即更新状态
             state[type][index][field] = value;
             saveState();
             renderPreview();
+            
+            // 只有值实际改变时才考虑保存历史
+            if (oldValue !== value) {
+                // 防抖保存历史记录
+                pendingUpdates[key] = setTimeout(() => {
+                    saveHistory(`编辑${getSectionName(type)}`);
+                    delete pendingUpdates[key];
+                }, 1000); // 1秒防抖
+            }
         }
 
         function addSkillTag() {
             const input = document.getElementById('skill-input');
             const val = input.value.trim();
             if (val && !state.skills.includes(val)) {
+                saveHistory(`添加技能标签：${val}`);
                 state.skills.push(val);
                 input.value = '';
                 renderForm();
@@ -692,6 +1013,8 @@
         }
 
         function removeSkillTag(index) {
+            const removedSkill = state.skills[index];
+            saveHistory(`删除技能标签：${removedSkill}`);
             state.skills.splice(index, 1);
             renderForm();
             renderPreview();
@@ -770,6 +1093,9 @@
             document.getElementById('list-skills').innerHTML = state.skills.map((s, i) => `
                 <div class="skill-tag" style="cursor:pointer;" onclick="removeSkillTag(${i})">${s} ×</div>
             `).join('');
+            
+            // 初始化拖拽排序
+            initDragSort();
         }
 
         function renderPreview() {
